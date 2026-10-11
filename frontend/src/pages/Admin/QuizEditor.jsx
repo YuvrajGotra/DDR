@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../../services/api';
 import { ArrowLeft, Save } from 'lucide-react';
-import { format } from 'date-fns';
 
 const QuizEditor = () => {
   const { id } = useParams();
@@ -73,11 +72,17 @@ const QuizEditor = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const quizPayload = {
+        ...formData,
+        openingTime: new Date(formData.openingTime).toISOString(),
+        closingTime: new Date(formData.closingTime).toISOString(),
+      };
+
       if (isEditing) {
-        await API.put(`/admin/quizzes/${id}`, formData);
+        await API.put(`/admin/quizzes/${id}`, quizPayload);
         navigate(`/admin/quiz/${id}`);
       } else {
-        const { data } = await API.post('/admin/quizzes', formData);
+        const { data } = await API.post('/admin/quizzes', quizPayload);
         navigate(`/admin/quiz/${data._id}`);
       }
     } catch (error) {
@@ -117,11 +122,11 @@ const QuizEditor = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-drr-gray mb-1">Opening Time</label>
+                <label className="block text-sm font-medium text-drr-gray mb-1">Opening Time (your local time)</label>
                 <input type="datetime-local" name="openingTime" required value={formData.openingTime} onChange={handleChange} className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-drr-gray mb-1">Closing Time</label>
+                <label className="block text-sm font-medium text-drr-gray mb-1">Closing Time (your local time)</label>
                 <input type="datetime-local" name="closingTime" required value={formData.closingTime} onChange={handleChange} className="input-field" />
               </div>
             </div>
