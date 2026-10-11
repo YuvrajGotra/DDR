@@ -82,7 +82,11 @@ const QuizEditor = () => {
       }
     } catch (error) {
       console.error(error);
-      alert('Failed to save quiz');
+      const validationErrors = error.response?.data?.errors;
+      const message = validationErrors?.length
+        ? validationErrors.join('\n')
+        : error.response?.data?.message || 'Failed to save quiz';
+      alert(message);
     }
   };
 
@@ -108,7 +112,7 @@ const QuizEditor = () => {
 
             <div>
               <label className="block text-sm font-medium text-drr-gray mb-1">Description</label>
-              <textarea name="description" required rows="3" value={formData.description} onChange={handleChange} className="input-field"></textarea>
+              <textarea name="description" required minLength="10" rows="3" value={formData.description} onChange={handleChange} className="input-field"></textarea>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
