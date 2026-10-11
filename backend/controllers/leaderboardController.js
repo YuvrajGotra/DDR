@@ -1,6 +1,38 @@
 const Attempt = require('../models/Attempt');
 const Quiz = require('../models/Quiz');
 
+const getCompletionTime = (attempt) => new Date(attempt.completedAt || attempt.createdAt || 0).getTime();
+
+const compareAttempts = (left, right) => {
+  const correctAnswerDifference = (right.correctAnswers || 0) - (left.correctAnswers || 0);
+  if (correctAnswerDifference !== 0) return correctAnswerDifference;
+
+  const completionDifference = getCompletionTime(left) - getCompletionTime(right);
+  if (completionDifference !== 0) return completionDifference;
+
+  const responseTimeDifference = (left.totalResponseTime || 0) - (right.totalResponseTime || 0);
+  if (responseTimeDifference !== 0) return responseTimeDifference;
+
+  return String(left._id).localeCompare(String(right._id));
+};
+
+const haveSameRank = (left, right) => (
+  (left.correctAnswers || 0) === (right.correctAnswers || 0)
+  && getCompletionTime(left) === getCompletionTime(right)
+);
+
+const rankAttempts = (attempts) => {
+  let currentRank = 0;
+
+  return [...attempts].sort(compareAttempts).map((attempt, index, sortedAttempts) => {
+    if (index === 0 || !haveSameRank(sortedAttempts[index - 1], attempt)) {
+      currentRank = index + 1;
+    }
+
+    return { ...attempt, rank: currentRank };
+  });
+};
+
 const getLeaderboard = async (req, res) => {
   const { quizId } = req.params;
   
@@ -14,29 +46,16 @@ const getLeaderboard = async (req, res) => {
     }
 
     const attempts = await Attempt.find({ quizId, status: 'Completed' })
-      .populate('userId', 'fullName rollNumber department email')
-      .sort({ totalScore: -1, totalResponseTime: 1, completedAt: 1 });
+      .populate('userId', 'fullName rollNumber department email');
 
-    // Competition ranking logic
     const leaderboard = [];
-    let currentRank = 1;
+    const rankedAttempts = rankAttempts(attempts.map((attempt) => attempt.toObject()));
 
-    for (let i = 0; i < attempts.length; i++) {
-      if (i > 0) {
-        const prev = attempts[i - 1];
-        const curr = attempts[i];
-        if (prev.totalScore === curr.totalScore && prev.totalResponseTime === curr.totalResponseTime) {
-          // Same rank as previous
-        } else {
-          currentRank = i + 1;
-        }
-      }
-
-      const attemptData = attempts[i].toObject();
+    for (const attemptData of rankedAttempts) {
       const user = attemptData.userId;
       
       const entry = {
-        rank: currentRank,
+        rank: attemptData.rank,
         attemptId: attemptData._id,
         fullName: user.fullName,
         rollNumber: user.rollNumber,
@@ -45,6 +64,7 @@ const getLeaderboard = async (req, res) => {
         correctAnswers: attemptData.correctAnswers,
         accuracy: attemptData.accuracy,
         totalResponseTime: attemptData.totalResponseTime,
+        completedAt: attemptData.completedAt,
       };
 
       // Only include email if admin requested it
@@ -62,4 +82,4 @@ const getLeaderboard = async (req, res) => {
   }
 };
 
-module.exports = { getLeaderboard };
+module.exports = { getLeaderboard, rankAttempts };

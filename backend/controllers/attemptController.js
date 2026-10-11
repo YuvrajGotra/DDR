@@ -1,7 +1,12 @@
+const { createHmac } = require('node:crypto');
 const User = require('../models/User');
 const Quiz = require('../models/Quiz');
 const Attempt = require('../models/Attempt');
 const Question = require('../models/Question');
+
+const hashRegistrationIp = (ipAddress) => createHmac('sha256', process.env.JWT_SECRET)
+  .update(ipAddress)
+  .digest('hex');
 
 const isValidStudentEmail = (email) => {
   if (typeof email !== 'string') return false;
@@ -34,6 +39,17 @@ const registerForQuiz = async (req, res) => {
     const now = new Date();
     if (now > quiz.closingTime) return res.status(400).json({ message: 'Quiz is closed.' });
 
+    const ipAddress = req.ip || req.socket?.remoteAddress;
+    if (!ipAddress) {
+      return res.status(400).json({ message: 'Unable to verify this network. Please try again.' });
+    }
+
+    const registrationIpHash = hashRegistrationIp(ipAddress);
+    const existingIpAttempt = await Attempt.findOne({ quizId, registrationIpHash });
+    if (existingIpAttempt) {
+      return res.status(409).json({ message: 'This network has already registered for this quiz.' });
+    }
+
     let user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       user = await User.create({
@@ -46,19 +62,23 @@ const registerForQuiz = async (req, res) => {
 
     const existingAttempt = await Attempt.findOne({ userEmail: normalizedEmail });
     if (existingAttempt) {
-      return res.status(400).json({ message: 'This Gmail ID has already registered for one quiz. Only one quiz is allowed per Gmail account.' });
+      return res.status(400).json({ message: 'This email has already registered for a quiz. Only one quiz is allowed per email address.' });
     }
 
     const attempt = await Attempt.create({
       quizId,
       userId: user._id,
       userEmail: normalizedEmail,
+      registrationIpHash,
     });
 
     res.status(201).json({ attemptId: attempt._id, message: 'Registration successful.' });
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(400).json({ message: 'This Gmail ID has already registered for one quiz. Only one quiz is allowed per Gmail account.' });
+      if (error.keyPattern?.registrationIpHash || error.keyValue?.registrationIpHash) {
+        return res.status(409).json({ message: 'This network has already registered for this quiz.' });
+      }
+      return res.status(400).json({ message: 'This email has already registered for a quiz. Only one quiz is allowed per email address.' });
     }
     res.status(500).json({ message: error.message });
   }
@@ -203,5 +223,5 @@ const terminateAttempt = async (req, res) => {
 };
 
 module.exports = {
-  registerForQuiz, startQuiz, getQuestionsForAttempt, submitAnswer, finishAttempt, terminateAttempt
+  registerForQuiz, startQuiz, getQuestionsForAttempt, submitAnswer, finishAttempt, terminateAttempt, hashRegistrationIp
 };

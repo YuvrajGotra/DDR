@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import API from '../../services/api';
 import { Trophy, Medal, ArrowLeft } from 'lucide-react';
 import clsx from 'clsx';
+import { format } from 'date-fns';
 
 const Leaderboard = () => {
   const { quizId } = useParams();
@@ -61,9 +62,11 @@ const Leaderboard = () => {
                     <th className="p-4 font-semibold text-drr-cyan">Rank</th>
                     <th className="p-4 font-semibold text-drr-cyan">Name</th>
                     <th className="p-4 font-semibold text-drr-cyan">Roll No</th>
+                    <th className="p-4 font-semibold text-drr-cyan text-right">Correct</th>
                     <th className="p-4 font-semibold text-drr-cyan text-right">Score</th>
                     <th className="p-4 font-semibold text-drr-cyan text-right hidden md:table-cell">Accuracy</th>
                     <th className="p-4 font-semibold text-drr-cyan text-right hidden sm:table-cell">Time (s)</th>
+                    <th className="p-4 font-semibold text-drr-cyan text-right">Completed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -92,9 +95,11 @@ const Leaderboard = () => {
                       </td>
                       <td className="p-4 font-medium">{entry.fullName}</td>
                       <td className="p-4 text-drr-gray">{entry.rollNumber}</td>
+                      <td className="p-4 text-right text-green-400">{entry.correctAnswers}</td>
                       <td className="p-4 text-right font-bold text-drr-cyan">{entry.totalScore}</td>
                       <td className="p-4 text-right text-drr-gray hidden md:table-cell">{entry.accuracy.toFixed(0)}%</td>
                       <td className="p-4 text-right text-drr-gray hidden sm:table-cell">{entry.totalResponseTime}</td>
+                      <td className="p-4 text-right text-drr-gray whitespace-nowrap">{entry.completedAt ? format(new Date(entry.completedAt), 'PP p') : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

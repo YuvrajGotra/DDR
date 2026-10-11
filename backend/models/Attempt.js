@@ -14,6 +14,7 @@ const attemptSchema = new mongoose.Schema({
   quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userEmail: { type: String, required: true }, // Normalized for compound index
+  registrationIpHash: { type: String, select: false },
   status: { type: String, enum: ['InProgress', 'Completed'], default: 'InProgress' },
   startedAt: { type: Date, default: Date.now },
   completedAt: { type: Date },
@@ -31,5 +32,9 @@ const attemptSchema = new mongoose.Schema({
 
 // Each Gmail address can participate in only one quiz
 attemptSchema.index({ userEmail: 1 }, { unique: true });
+attemptSchema.index(
+  { quizId: 1, registrationIpHash: 1 },
+  { unique: true, partialFilterExpression: { registrationIpHash: { $type: 'string' } } }
+);
 
 module.exports = mongoose.model('Attempt', attemptSchema);
