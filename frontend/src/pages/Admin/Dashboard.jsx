@@ -10,19 +10,30 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState([]);
   const [stats, setStats] = useState(null);
+  const [quizLoadError, setQuizLoadError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAdminQuizzes = async () => {
       try {
-        const [quizData, statsData] = await Promise.all([
+        const [quizResult, statsResult] = await Promise.allSettled([
           API.get('/admin/quizzes'),
-          API.get('/admin/stats')
+          API.get('/admin/quizzes/stats')
         ]);
-        setQuizzes(quizData.data);
-        setStats(statsData.data);
-      } catch (err) {
-        console.error(err);
+
+        if (quizResult.status === 'fulfilled') {
+          setQuizzes(quizResult.value.data);
+          setQuizLoadError('');
+        } else {
+          console.error(quizResult.reason);
+          setQuizLoadError(quizResult.reason.response?.data?.message || 'Unable to load quizzes. Please try again.');
+        }
+
+        if (statsResult.status === 'fulfilled') {
+          setStats(statsResult.value.data);
+        } else {
+          console.error(statsResult.reason);
+        }
       } finally {
         setLoading(false);
       }
@@ -115,6 +126,13 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {quizLoadError && (
+                    <tr>
+                      <td colSpan="5" role="alert" className="p-8 text-center text-red-300">
+                        {quizLoadError}
+                      </td>
+                    </tr>
+                  )}
                   {quizzes.map((quiz) => (
                     <tr key={quiz._id} className="border-b border-drr-blue/20 hover:bg-drr-blue/10">
                       <td className="p-4 font-medium">{quiz.title}</td>
@@ -155,7 +173,7 @@ const Dashboard = () => {
                       </td>
                     </tr>
                   ))}
-                  {quizzes.length === 0 && (
+                  {quizzes.length === 0 && !quizLoadError && (
                     <tr>
                       <td colSpan="5" className="p-8 text-center text-drr-gray">
                         No quizzes found. Create one to get started.
